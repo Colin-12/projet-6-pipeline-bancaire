@@ -1,0 +1,18 @@
+# GCP credentials
+*.json
+!dbt_project/profiles.yml
+
+# Python
+__pycache__/
+*.pyc
+.env
+venv/
+
+# dbt
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+
+# OS
+.DS_Store
+Thumbs.db
