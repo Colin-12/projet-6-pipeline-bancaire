@@ -1,8 +1,16 @@
+<<<<<<< HEAD
+name: "pipeline_bancaire"
+version: "1.0.0"
+config-version: 2
+
+profile: "pipeline_bancaire"
+=======
 name: 'pipeline_bancaire'
 version: '1.0.0'
 config-version: 2
 
 profile: 'pipeline_bancaire'
+>>>>>>> 4ff40105d29eb45cd80369f0aa61731ea939c2fb
 
 model-paths: ["models"]
 test-paths: ["tests"]
@@ -16,4 +24,8 @@ models:
     staging:
       +materialized: view
     mart:
+<<<<<<< HEAD
       +materialized: table
+=======
+      +materialized: table
+>>>>>>> 4ff40105d29eb45cd80369f0aa61731ea939c2fb
