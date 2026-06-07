@@ -16,3 +16,10 @@ dbt_project/logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# dbt Cloud generated files
+dbt_project/logs/
+dbt_project/target/
+dbt_project/profiles.yml
+*.parquet
+*.log

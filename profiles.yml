@@ -1,0 +1,29 @@
+user:
+  outputs:
+    default:
+      keyfile_json:
+        auth_provider_x509_cert_url: https://www.googleapis.com/oauth2/v1/certs
+        auth_uri: https://accounts.google.com/o/oauth2/auth
+        client_email: github-actions-pipeline@projet6-pipeline-bancaire.iam.gserviceaccount.com
+        client_id: '113277272529362862144'
+        client_x509_cert_url: https://www.googleapis.com/robot/v1/metadata/x509/github-actions-pipeline%40projet6-pipeline-bancaire.iam.gserviceaccount.com
+        private_key: '-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC/aFxFha4R7Lm4\nC8dB4J5ymA/1N0eld2U3BQ2I0hELtpC1rE6XGb1pKTkB+6LvPsbsIu77yYChAhyI\n8NJr86pTwo8FVME4XvWz59asu9szwQR3HnUAccNtLTlfR4RLSZxL0mKxWaY5CXDN\nPZ2+JXfxdTNV3vRFS+6ZpTZNzp1gULb00EGfRwQDGnjPUlgrPmL6/zt99aNdBMjl\nnX6zu2DGXGP/Ksgx4dsB/4/6GGpTndOWghgrcs0MP62/ohTA+iGfiEQV9RKQIoaO\nHIjdBaFEXT538it2/CP+KOftDFDA4JIkM2eQpR5Sgy87Ci2CcVQFNDBZqBZXVZ4/\nNbyhJ3bHAgMBAAECggEABXviS4+f7sg0g08QahUbFQzBmvShgIkiL5MH0egK2vtj\nvADFeP4gzMwvOPJSYb5lCUua7esrsfE94Lfdn4AqB3T8j1o1Sv3VgPkJz9sgqvlD\nEn1J5uBbiVuRWDx+pYA6Enti89KDY6ufPWd1hzF1n/JhV9AnztB1HpZ62XyA9SBu\nMOHVDsr6LKZS0PXJYIExxMvUkq5MC/DDg6+6Tv42Ngc8h9yXEwtDkW8YlFNhGefW\nQNBL6OcPYgLsGVfx782xDXTLJeLnf3ppewBzmes8hbMaqmHYtZmUBRLzaZl0OSph\nILj5tEu1R+eV0cgYKZ0Y6S97xIFYQ4P7vih8a+y9sQKBgQDmprrvPSvBByeMoI/H\nTy1lvFdMO/Uhc8o594ZP1vg+OuaBymQRfEVF9zFT7tDJ/yi3eIlWHhI+L5tNrbow\nySmazVbSpIlak/71MW/EJssRFFxTqBJ4UcUhz0ffBV8KAHWjwwmTLbws9k944T3f\n7ZufnQStfv0vUZFfnuXNsNxXPwKBgQDUcYdDqgsh8zNkn2KVF4X6BPK8D5L5IVXm\niPBq+wyvWcWchfj8eWT2kOsi/bJpqhZJbe2SCJwCMf6STCmFvw6gS9/UbHXBYrlR\n0R42JCP2LZm0Nb2Ol0qxeN6yNX/apBFcksbhQZY+FMdE6WuxAzv6iavb7kj/LHQK\ntQEvvBlGeQKBgGnC/CalUwHQ6QanvSX0HWnwAcuYFp//OzR3VqQXe371fSr4hggq\nho09euX0tNJa6O2wHLFbWpwfMkRdK+og463zCCPQhJb/E8KUp54295heULOfdtCr\nFgyZwmf2S40HhunPjf1p1EZ9rxVLmxaqGlkHI9T2TNw8t78z2kYGGhL7AoGBALR8\nFwzXZEndkmYEOv6rU3mLxqUbHiRlu9L1uDtLOgWnYQmPkG7+u1X23K2Hl5HJnNGZ\ngOI2SkRbMQodhpFINibdDzYrRwea1hK6dM5Oefbl2tWNapO/2QdZxujkJtEb3lwl\nnq00yW3IvVrAbGugcc5yM/3PPVj87UFDcdSaG2cRAoGBAIKSit3DsAvikUhIMHk2\nPpQ7Dp2SF3E8z3zmUwsZFz/R50XgpRPXqqOtvyUHWK8MUHBt6i/FlF/d5sB/x3pB\n1Ih2jmcLH8O3jNU4CztUVG0uzfktuvRZ1PrHHO6x2xFU6tLHcufLwQrVzCHB46Y/\nsZRYo1aRJcLPH0BOdnl1WxrT\n-----END
+          PRIVATE KEY-----\n'
+        private_key_id: 84fa6f61e664f562e2de9d22a32d7e85de50c0b7
+        project_id: projet6-pipeline-bancaire
+        token_uri: https://oauth2.googleapis.com/token
+        type: service_account
+      method: service-account-json
+      project: projet6-pipeline-bancaire
+      retries: 1
+      schema: dbt_acolinkomtcheuveigneleukam
+      scopes:
+      - https://www.googleapis.com/auth/bigquery
+      - https://www.googleapis.com/auth/cloud-platform
+      - https://www.googleapis.com/auth/drive
+      - https://www.googleapis.com/auth/userinfo.email
+      target_name: default
+      threads: 4
+      type: bigquery
+      location: europe-west1
+  target: default
