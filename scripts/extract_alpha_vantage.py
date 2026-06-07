@@ -2,11 +2,11 @@
 extract_alpha_vantage.py
 ------------------------
 Extrait les indicateurs fondamentaux (PER, EPS, capitalisation, dividende)
-de BNP Paribas, Société Générale et Crédit Agricole depuis Alpha Vantage
+de BNP Paribas, Société Générale et Crédit Agricole via yfinance .info
 et dépose le CSV dans GCS.
 
-Note : le free tier Alpha Vantage limite à 25 appels/jour.
-3 tickers × 1 appel = 3 appels — largement dans le quota.
+Note : Alpha Vantage free tier ne supporte pas les tickers .PA
+On utilise yfinance comme source de fondamentaux.
 
 Usage :
     python scripts/extract_alpha_vantage.py
@@ -21,41 +21,26 @@ import time
 from datetime import date, datetime
 
 import pandas as pd
-import requests
 from google.cloud import storage
 
 # ── Constantes ────────────────────────────────────────────────────────────────
 TICKERS     = ["BNP.PA", "GLE.PA", "ACA.PA"]
 BUCKET_NAME = os.environ.get("GCP_BUCKET_NAME", "projet6-raw-colin")
-API_KEY     = os.environ.get("ALPHA_VANTAGE_KEY", "")
 SOURCE_NAME = "alpha_vantage"
-BASE_URL    = "https://www.alphavantage.co/query"
-
-# Colonnes qu'on veut récupérer depuis l'endpoint OVERVIEW
-FIELDS_OF_INTEREST = {
-    "Symbol":              "ticker",
-    "Name":                "company_name",
-    "MarketCapitalization":"market_cap",
-    "PERatio":             "per_ratio",
-    "EPS":                 "eps",
-    "DividendYield":       "dividend_yield",
-    "BookValue":           "book_value",
-    "PriceToBookRatio":    "price_to_book",
-    "ReturnOnEquityTTM":   "roe",
-    "ProfitMargin":        "profit_margin",
-    "FiscalYearEnd":       "fiscal_year_end",
-    "LatestQuarter":       "latest_quarter",
-}
 
 
 # ── Extraction ────────────────────────────────────────────────────────────────
 def extract_ticker(ticker: str) -> dict | None:
     """
     Récupère les fondamentaux via yfinance .info
-    (fallback car Alpha Vantage ne supporte pas les tickers .PA)
+    Délai entre les appels pour éviter le rate limit Yahoo Finance en CI/CD.
     """
     try:
         import yfinance as yf
+
+        # Délai pour éviter le 429 depuis GitHub Actions
+        time.sleep(8)
+
         info = yf.Ticker(ticker).info
 
         if not info or "symbol" not in info:
@@ -87,10 +72,7 @@ def extract_ticker(ticker: str) -> dict | None:
 
 # ── Upload GCS ────────────────────────────────────────────────────────────────
 def upload_to_gcs(df: pd.DataFrame, target_date: date) -> tuple[bool, str]:
-    """
-    Dépose le CSV dans GCS sous :
-    gs://{BUCKET}/{source}/{YYYY-MM-DD}/fundamentals.csv
-    """
+    """Dépose le CSV dans GCS sous gs://{BUCKET}/{source}/{YYYY-MM-DD}/fundamentals.csv"""
     date_str = target_date.strftime("%Y-%m-%d")
     gcs_path = f"{SOURCE_NAME}/{date_str}/fundamentals.csv"
 
@@ -113,7 +95,7 @@ def upload_to_gcs(df: pd.DataFrame, target_date: date) -> tuple[bool, str]:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(description="Extrait les fondamentaux depuis Alpha Vantage")
+    parser = argparse.ArgumentParser(description="Extrait les fondamentaux via yfinance")
     parser.add_argument("--date", type=str, default=None,
                         help="Date cible au format YYYY-MM-DD (défaut : aujourd'hui)")
     args = parser.parse_args()
@@ -129,7 +111,7 @@ def main():
     errors = []
     rows = []
 
-    for i, ticker in enumerate(TICKERS):
+    for ticker in TICKERS:
         print(f"→ {ticker}")
         row = extract_ticker(ticker)
 
@@ -139,11 +121,6 @@ def main():
             records_extracted += 1
         else:
             errors.append(ticker)
-
-        # Délai entre les appels — Alpha Vantage free tier : max 5 req/min
-        if i < len(TICKERS) - 1:
-            print(f"  ⏳ Attente 15s (rate limit Alpha Vantage)...")
-            
 
     duration = round(time.time() - start_time, 2)
 
