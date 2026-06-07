@@ -8,18 +8,18 @@ __pycache__/
 .env
 venv/
 
-# dbt
-dbt_project/target/
-dbt_project/dbt_packages/
-dbt_project/logs/
-
 # OS
 .DS_Store
 Thumbs.db
 
-# Default .gitignore content added by dbt Cloud# you shouldn't commit these into source control
-# these are the default directory names, adjust/add to fit your needs
+# dbt Cloud generated files
+dbt_project/logs/
+dbt_project/target/
+dbt_project/profiles.yml
+*.parquet
+*.log
+
+# dbt default directories
 target/
 dbt_packages/
 logs/
-# end dbt Cloud content
