@@ -25,7 +25,7 @@ TICKERS     = ["BNP.PA", "GLE.PA", "ACA.PA"]
 BUCKET_NAME = os.environ.get("GCP_BUCKET_NAME", "projet6-raw-colin")
 SOURCE_NAME = "yfinance"
 
-# Colonnes attendues — validation de schéma en entrée
+# Colonnes attendues — validation de schema en entree
 EXPECTED_COLUMNS = {"Open", "High", "Low", "Close", "Volume", "Adj Close"}
 
 
@@ -35,6 +35,11 @@ def get_target_date(date_str: str | None) -> date:
     if date_str:
         return datetime.strptime(date_str, "%Y-%m-%d").date()
     return date.today()
+
+
+def is_market_open(target_date: date) -> bool:
+    """Retourne False si weekend (samedi ou dimanche)."""
+    return target_date.weekday() < 5  # 0=lundi ... 4=vendredi
 
 
 def validate_schema(df: pd.DataFrame, ticker: str) -> bool:
@@ -59,6 +64,10 @@ def validate_data(df: pd.DataFrame, ticker: str) -> bool:
 
 # ── Extraction ────────────────────────────────────────────────────────────────
 def extract_ticker(ticker: str, target_date: date) -> pd.DataFrame | None:
+    """
+    Extrait les données d'un ticker pour une date donnée.
+    Retourne un DataFrame ou None en cas d'erreur.
+    """
     start = target_date.strftime("%Y-%m-%d")
     end   = (target_date + timedelta(days=1)).strftime("%Y-%m-%d")
 
@@ -66,7 +75,6 @@ def extract_ticker(ticker: str, target_date: date) -> pd.DataFrame | None:
         raw = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=False)
 
         # yfinance retourne parfois un MultiIndex sur les colonnes
-        # On aplatit en gardant seulement le premier niveau
         if isinstance(raw.columns, pd.MultiIndex):
             raw.columns = raw.columns.get_level_values(0)
 
@@ -100,23 +108,18 @@ def extract_ticker(ticker: str, target_date: date) -> pd.DataFrame | None:
 
 # ── Upload GCS ────────────────────────────────────────────────────────────────
 def upload_to_gcs(df: pd.DataFrame, target_date: date) -> tuple[bool, str]:
-    """
-    Dépose le CSV dans GCS sous :
-    gs://{BUCKET}/{source}/{YYYY-MM-DD}/cours.csv
-    Retourne (succès, chemin GCS).
-    """
+    """Dépose le CSV dans GCS sous gs://{BUCKET}/{source}/{YYYY-MM-DD}/cours.csv"""
     date_str = target_date.strftime("%Y-%m-%d")
     gcs_path = f"{SOURCE_NAME}/{date_str}/cours.csv"
 
     try:
         csv_buffer = io.StringIO()
         df.to_csv(csv_buffer, index=False)
-        csv_content = csv_buffer.getvalue()
 
         client = storage.Client()
         bucket = client.bucket(BUCKET_NAME)
         blob   = bucket.blob(gcs_path)
-        blob.upload_from_string(csv_content, content_type="text/csv")
+        blob.upload_from_string(csv_buffer.getvalue(), content_type="text/csv")
 
         print(f"  ✅ Uploadé → gs://{BUCKET_NAME}/{gcs_path}")
         return True, gcs_path
@@ -134,16 +137,35 @@ def main():
     args = parser.parse_args()
 
     target_date = get_target_date(args.date)
+
     print(f"\n📈 Extraction Yahoo Finance — {target_date}")
     print(f"   Tickers : {TICKERS}")
     print(f"   Bucket  : {BUCKET_NAME}\n")
 
+    # Weekend : marché fermé, pas d'erreur
+    if not is_market_open(target_date):
+        day_name = target_date.strftime("%A")
+        print(f"⏭️  {day_name} — marché fermé, pas de données attendues.")
+        try:
+            from log_pipeline_run import log_run
+            log_run(
+                source_name       = SOURCE_NAME,
+                step              = "extract",
+                records_extracted = 0,
+                records_loaded    = 0,
+                duration_seconds  = 0.0,
+                status            = "warning",
+                error_message     = f"{day_name} — marché fermé"
+            )
+        except Exception:
+            pass
+        sys.exit(0)
+
     start_time = time.time()
     records_extracted = 0
     errors = []
-
-    # Extraire chaque ticker avec un délai pour éviter le rate limiting
     all_frames = []
+
     for i, ticker in enumerate(TICKERS):
         print(f"→ {ticker}")
         df = extract_ticker(ticker, target_date)
@@ -154,21 +176,19 @@ def main():
         else:
             errors.append(ticker)
 
-        # Délai entre les appels pour éviter le rate limiting Yahoo Finance
         if i < len(TICKERS) - 1:
             time.sleep(2)
 
     duration = round(time.time() - start_time, 2)
 
-    # Upload GCS si on a des données
+    # Upload GCS
     records_loaded = 0
     status = "failure"
     error_message = None
-    gcs_path = ""
 
     if all_frames:
         combined_df = pd.concat(all_frames, ignore_index=True)
-        success, gcs_path = upload_to_gcs(combined_df, target_date)
+        success, _ = upload_to_gcs(combined_df, target_date)
 
         if success:
             records_loaded = len(combined_df)
@@ -182,7 +202,7 @@ def main():
         error_message = f"Aucune donnée extraite. Tickers en erreur : {errors}"
         print(f"\n❌ Aucune donnée à uploader.")
 
-    # Log du run dans pipeline_runs
+    # Log pipeline_runs
     try:
         from log_pipeline_run import log_run
         log_run(
@@ -206,7 +226,6 @@ def main():
     if error_message:
         print(f"   Erreur           : {error_message}")
 
-    # Exit code non-nul si échec complet (pour GitHub Actions)
     if status == "failure":
         sys.exit(1)
 
