@@ -39,11 +39,12 @@ jobs:
         run: python scripts/extract_yfinance.py
 
       - name: Extract Alpha Vantage (fondamentaux)
+        continue-on-error: true
         run: python scripts/extract_alpha_vantage.py
 
       - name: Extract Banque de France (taux macro)
+        continue-on-error: true
         run: python scripts/extract_banque_france.py
-
 
       # ── Étape 2 : Chargement BigQuery ──────────────────────────────────────
       - name: Load CSVs to BigQuery raw
