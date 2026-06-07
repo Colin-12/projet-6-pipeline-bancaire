@@ -35,6 +35,7 @@ jobs:
 
       # ── Étape 1 : Extraction ───────────────────────────────────────────────
       - name: Extract Yahoo Finance
+        continue-on-error: true
         run: python scripts/extract_yfinance.py
 
       - name: Extract Alpha Vantage (fondamentaux)
@@ -42,6 +43,7 @@ jobs:
 
       - name: Extract Banque de France (taux macro)
         run: python scripts/extract_banque_france.py
+
 
       # ── Étape 2 : Chargement BigQuery ──────────────────────────────────────
       - name: Load CSVs to BigQuery raw
