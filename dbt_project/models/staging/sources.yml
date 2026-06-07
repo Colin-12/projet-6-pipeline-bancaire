@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: projet6_raw
+    database: projet6-pipeline-bancaire
+    schema: projet6_raw
+    tables:
+      - name: raw_market_data
+        description: "Cours boursiers quotidiens — BNP, SG, CA"
+      - name: raw_financials
+        description: "Indicateurs fondamentaux — PER, MarketCap, EPS"
+      - name: raw_macro
+        description: "Taux macro BCE — Euribor 3M"

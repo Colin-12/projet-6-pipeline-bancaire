@@ -8,11 +8,18 @@ __pycache__/
 .env
 venv/
 
-# dbt
-dbt_project/target/
-dbt_project/dbt_packages/
-dbt_project/logs/
-
 # OS
 .DS_Store
 Thumbs.db
+
+# dbt Cloud generated files
+dbt_project/logs/
+dbt_project/target/
+dbt_project/profiles.yml
+*.parquet
+*.log
+
+# dbt default directories
+target/
+dbt_packages/
+logs/
