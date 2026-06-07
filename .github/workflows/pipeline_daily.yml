@@ -1,0 +1,106 @@
+name: Pipeline bancaire quotidien
+
+on:
+  schedule:
+    - cron: '0 17 * * 1-5'  # 17h UTC = 18h/19h France, lundi-vendredi uniquement
+  workflow_dispatch:          # Permet aussi de lancer manuellement depuis GitHub
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_BUCKET_NAME: ${{ secrets.GCP_BUCKET_NAME }}
+  ALPHA_VANTAGE_KEY: ${{ secrets.ALPHA_VANTAGE_KEY }}
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Setup ──────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── Authentification GCP ───────────────────────────────────────────────
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # ── Étape 1 : Extraction ───────────────────────────────────────────────
+      - name: Extract Yahoo Finance
+        run: python scripts/extract_yfinance.py
+
+      - name: Extract Alpha Vantage (fondamentaux)
+        run: python scripts/extract_alpha_vantage.py
+
+      - name: Extract Banque de France (taux macro)
+        run: python scripts/extract_banque_france.py
+
+      # ── Étape 2 : Chargement BigQuery ──────────────────────────────────────
+      - name: Load CSVs to BigQuery raw
+        run: python scripts/load_to_bigquery.py
+
+      # ── Étape 3 : dbt run + test ───────────────────────────────────────────
+      - name: Setup dbt
+        run: |
+          pip install dbt-bigquery
+          mkdir -p ~/.dbt
+
+      - name: Write dbt profiles
+        run: |
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          pipeline_bancaire:
+            target: prod
+            outputs:
+              prod:
+                type: bigquery
+                method: service-account-json
+                project: ${{ env.GCP_PROJECT_ID }}
+                dataset: projet6_staging
+                location: europe-west1
+                threads: 4
+                keyfile_json:
+                  type: service_account
+                  project_id: ${{ env.GCP_PROJECT_ID }}
+                  private_key_id: ${{ secrets.GCP_PRIVATE_KEY_ID }}
+                  private_key: ${{ secrets.GCP_PRIVATE_KEY }}
+                  client_email: ${{ secrets.GCP_CLIENT_EMAIL }}
+                  client_id: ${{ secrets.GCP_CLIENT_ID }}
+                  auth_uri: https://accounts.google.com/o/oauth2/auth
+                  token_uri: https://oauth2.googleapis.com/token
+          EOF
+
+      - name: dbt run (staging + mart)
+        working-directory: dbt_project
+        run: dbt run --profiles-dir ~/.dbt
+
+      - name: dbt test
+        working-directory: dbt_project
+        run: dbt test --profiles-dir ~/.dbt
+
+      # ── Notification en cas d'échec ────────────────────────────────────────
+      - name: Notify on failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_USER }}
+          password: ${{ secrets.EMAIL_PASS }}
+          subject: "❌ Pipeline Projet 6 — Échec du run ${{ github.run_number }}"
+          to: ${{ secrets.EMAIL_USER }}
+          body: |
+            Le pipeline quotidien a échoué.
+
+            Run : ${{ github.run_number }}
+            Date : ${{ github.event.head_commit.timestamp }}
+
+            Consultez les logs : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
