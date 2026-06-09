@@ -65,46 +65,92 @@ def validate_data(df: pd.DataFrame, ticker: str) -> bool:
 # ── Extraction ────────────────────────────────────────────────────────────────
 def extract_ticker(ticker: str, target_date: date) -> pd.DataFrame | None:
     """
-    Extrait les données d'un ticker pour une date donnée.
-    Retourne un DataFrame ou None en cas d'erreur.
+    Récupère les cours via Alpha Vantage TIME_SERIES_DAILY.
+    Fallback depuis yfinance si Alpha Vantage échoue.
     """
-    start = target_date.strftime("%Y-%m-%d")
-    end   = (target_date + timedelta(days=1)).strftime("%Y-%m-%d")
+    import requests
 
+    # Convertir le ticker Yahoo Finance en ticker Alpha Vantage
+    # BNP.PA → BNP.PAR (Euronext Paris)
+    av_ticker_map = {
+        "BNP.PA": "BNP.PAR",
+        "GLE.PA": "GLE.PAR",
+        "ACA.PA": "ACA.PAR",
+    }
+    av_ticker = av_ticker_map.get(ticker, ticker)
+    api_key   = os.environ.get("ALPHA_VANTAGE_KEY", "")
+
+    if api_key:
+        try:
+            url = "https://www.alphavantage.co/query"
+            params = {
+                "function":   "TIME_SERIES_DAILY",
+                "symbol":     av_ticker,
+                "apikey":     api_key,
+                "outputsize": "compact",
+            }
+            resp = requests.get(url, params=params, timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
+
+            if "Note" in data:
+                print(f"  ⚠️  {ticker} — Rate limit Alpha Vantage")
+            elif "Time Series (Daily)" in data:
+                ts = data["Time Series (Daily)"]
+                date_str = str(target_date)
+
+                if date_str in ts:
+                    row = ts[date_str]
+                    df = pd.DataFrame([{
+                        "ticker":        ticker,
+                        "date_cotation": target_date,
+                        "open":          float(row["1. open"]),
+                        "high":          float(row["2. high"]),
+                        "low":           float(row["3. low"]),
+                        "close":         float(row["4. close"]),
+                        "adj_close":     float(row["4. close"]),
+                        "volume":        int(row["5. volume"]),
+                    }])
+                    print(f"  ✅ {ticker} — cours Alpha Vantage : {row['4. close']}")
+                    return df
+                else:
+                    print(f"  ⚠️  {ticker} — date {date_str} absente (jour férié ?)")
+                    return None
+        except Exception as e:
+            print(f"  ⚠️  {ticker} — Alpha Vantage échoué : {e}, tentative yfinance...")
+
+    # Fallback yfinance (fonctionne en local, pas en CI)
     try:
-        raw = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=False)
+        start = target_date.strftime("%Y-%m-%d")
+        end   = (target_date + timedelta(days=1)).strftime("%Y-%m-%d")
+        raw   = yf.download(ticker, start=start, end=end,
+                            progress=False, auto_adjust=False)
 
-        # yfinance retourne parfois un MultiIndex sur les colonnes
         if isinstance(raw.columns, pd.MultiIndex):
             raw.columns = raw.columns.get_level_values(0)
 
         if not validate_schema(raw, ticker):
             return None
-
         if not validate_data(raw, ticker):
             return None
 
         df = raw.reset_index()
         df["ticker"] = ticker
         df = df.rename(columns={
-            "Date":      "date_cotation",
-            "Open":      "open",
-            "High":      "high",
-            "Low":       "low",
-            "Close":     "close",
-            "Adj Close": "adj_close",
-            "Volume":    "volume"
+            "Date": "date_cotation", "Open": "open", "High": "high",
+            "Low": "low", "Close": "close", "Adj Close": "adj_close",
+            "Volume": "volume"
         })
         df["date_cotation"] = pd.to_datetime(df["date_cotation"]).dt.date
-        df = df[["ticker", "date_cotation", "open", "high", "low", "close", "adj_close", "volume"]]
+        df = df[["ticker", "date_cotation", "open", "high",
+                 "low", "close", "adj_close", "volume"]]
 
-        print(f"  ✅ {ticker} — {len(df)} ligne(s) extraite(s)")
+        print(f"  ✅ {ticker} — {len(df)} ligne(s) via yfinance")
         return df
 
     except Exception as e:
         print(f"  ❌ {ticker} — erreur : {e}")
         return None
-
 
 # ── Upload GCS ────────────────────────────────────────────────────────────────
 def upload_to_gcs(df: pd.DataFrame, target_date: date) -> tuple[bool, str]:
