@@ -101,21 +101,25 @@ def extract_ticker(ticker: str, target_date: date) -> pd.DataFrame | None:
 
                 if date_str in ts:
                     row = ts[date_str]
-                    df = pd.DataFrame([{
-                        "ticker":        ticker,
-                        "date_cotation": target_date,
-                        "open":          float(row["1. open"]),
-                        "high":          float(row["2. high"]),
-                        "low":           float(row["3. low"]),
-                        "close":         float(row["4. close"]),
-                        "adj_close":     float(row["4. close"]),
-                        "volume":        int(row["5. volume"]),
-                    }])
-                    print(f"  ✅ {ticker} — cours Alpha Vantage : {row['4. close']}")
-                    return df
                 else:
-                    print(f"  ⚠️  {ticker} — date {date_str} absente (jour férié ?)")
-                    return None
+                    # Prendre la date la plus récente disponible
+                    latest_date = sorted(ts.keys())[-1]
+                    print(f"  ⚠️  {ticker} — {date_str} absent, utilisation de {latest_date}")
+                    row = ts[latest_date]
+                    date_str = latest_date
+
+                df = pd.DataFrame([{
+                    "ticker":        ticker,
+                    "date_cotation": date_str,
+                    "open":          float(row["1. open"]),
+                    "high":          float(row["2. high"]),
+                    "low":           float(row["3. low"]),
+                    "close":         float(row["4. close"]),
+                    "adj_close":     float(row["4. close"]),
+                    "volume":        int(row["5. volume"]),
+                }])
+                print(f"  ✅ {ticker} — cours Alpha Vantage : {row['4. close']}")
+                return df
         except Exception as e:
             print(f"  ⚠️  {ticker} — Alpha Vantage échoué : {e}, tentative yfinance...")
 
